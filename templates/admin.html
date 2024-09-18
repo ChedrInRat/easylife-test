@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - Users and Transactions{% endblock %}
+
+{% block content %}
+
+    <!-- <div class="filters"> -->
+    <!--     <form method="get" action="/"> -->
+    <!--         <label for="username">Username:</label> -->
+    <!--         <input type="text" id="username" name="username" placeholder="Search by name"> -->
+    <!--          -->
+    <!--         <label for="from_date">From:</label> -->
+    <!--         <input type="date" id="from_date" name="from_date"> -->
+    <!---->
+    <!--         <label for="to_date">To:</label> -->
+    <!--         <input type="date" id="to_date" name="to_date"> -->
+    <!---->
+    <!--         <label for="min_amount">Min Amount:</label> -->
+    <!--         <input type="number" id="min_amount" name="min_amount" step="0.01"> -->
+    <!---->
+    <!--         <label for="max_amount">Max Amount:</label> -->
+    <!--         <input type="number" id="max_amount" name="max_amount" step="0.01"> -->
+    <!---->
+    <!--         <label for="type">Transaction Type:</label> -->
+    <!--         <select id="type" name="type"> -->
+    <!--             <option value="">All</option> -->
+    <!--             <option value="income">Income</option> -->
+    <!--             <option value="spent">Spent</option> -->
+    <!--         </select> -->
+    <!---->
+    <!--         <button type="submit">Filter</button> -->
+    <!--     </form> -->
+    <!-- </div> -->
+
+    <div>
+        <h3>Add User</h3>
+        <form id="addUserForm">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" placeholder="Enter name">
+            <button type="submit">Add User</button>
+        </form>
+    </div>
+
+    <div>
+        <h3>Add Transaction</h3>
+        <form id="addTransactionForm">
+            <label for="user_id">User ID:</label>
+            <input type="number" id="user_id" name="user_id" placeholder="Enter user ID">
+            
+            <label for="amount">Amount:</label>
+            <input type="number" id="amount" name="amount" step="0.01" placeholder="Enter amount">
+
+            <label for="type">Type:</label>
+            <select id="type" name="type">
+                <option value="income">Income</option>
+                <option value="spent">Spent</option>
+            </select>
+            
+            <button type="submit">Add Transaction</button>
+        </form>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Expand</th>
+                <th>Edit</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr class="user-row" data-user-id="{{ user.id }}">
+                <td>{{ user.id }}</td>
+                <td><a href="/user/{{user.id}}/stats">{{user.name}}</a></td>
+                <td><button class="toggle-btn" onclick="toggleTransactions({{ user.id }})">Toggle</button></td>
+                <td><button onclick="document.getElementById('edit-user-{{ user.id }}').style.display='block'">Edit User</button>
+                <div id="edit-user-{{ user.id }}" style="display:none;">
+                  <form id="edit-user" class="edit-user" method="PATCH" action="/user/{{ user.id }}">
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" value="{{ user.name }}" required>
+                    <button type="submit">Update User</button>
+                  </form>
+                </div></td>
+                <td><button class="delete-btn" onclick="deleteUser({{ user.id }})">Delete</button></td>
+            </tr>
+
+            <tbody class="transactions" id="transactions-{{ user.id }}">
+                {% for transaction in user.transactions %}
+                <tr>
+                    <td>
+                        Date: {{ transaction.t_date }} 
+                    </td>
+                    <td>
+                        Amount: ${{ transaction.amount }} 
+                    </td>
+                    <td>
+                        Type: {{ transaction.t_type }}
+                    </td>
+                    <td>
+                      <button onclick="document.getElementById('edit-transaction-{{ transaction.id }}').style.display='block'">Edit Transaction</button>
+                      <div id="edit-transaction-{{ transaction.id }}" style="display:none;">
+                        <form id="edit-transaction" class="edit-transaction" method="PATCH" action="/transaction/{{ transaction.id }}">
+                          <label for="amount">Amount:</label>
+                          <input type="number" id="amount" name="amount" value="{{ transaction.amount }}" required>
+                          <label for="user_id">UserID:</label>
+                          <input type="number" id="user_id" name="user_id" value="{{ user.id }}" required> 
+                          <label for="t_type">Type:</label>
+                          <select id="t_type" name="t_type" required>
+                            <option value="income" {% if transaction.t_type == 'income' %}selected{% endif %}>Income</option>
+                            <option value="spent" {% if transaction.t_type == 'spent' %}selected{% endif %}>Spent</option>
+                          </select>
+                          
+                          <button type="submit">Update Transaction</button>
+                        </form>
+                      </div>
+                    </td>
+                    <td><button class="delete-btn" onclick="deleteTransaction({{ transaction.id }})">Delete</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        
+        function toggleTransactions(userId) {
+            var transactions = document.getElementById("transactions-" + userId);
+            transactions.classList.toggle("open");
+        }
+
+        function deleteTransaction(transactionId) {
+            if (confirm("Are you sure you want to delete this transaction?")) {
+                fetch(`transaction/${transactionId}`, { method: 'DELETE' })
+                    .then(response => {
+                        if (response.ok) {
+                            location.reload(); 
+                        } else {
+                            alert("Failed to delete user.");
+                        }
+                    });
+            }
+        }
+
+        function deleteUser(userId) {
+            if (confirm("Are you sure you want to delete this user?")) {
+                fetch(`user/${userId}`, { method: 'DELETE' })
+                    .then(response => {
+                        if (response.ok) {
+                            location.reload(); 
+                        } else {
+                            alert("Failed to delete user.");
+                        }
+                    });
+            }
+        }
+
+        document.querySelectorAll('form[id=edit-user]').forEach(form => {
+          form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            let formData = new FormData(form);
+            let jsonData = {};
+            formData.forEach((value, key) => jsonData[key] = value);
+
+            fetch(form.action, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(jsonData),
+            })
+            .then(response => response.json())
+            .then(data => {
+              alert('User updated successfully!');
+              window.location.reload(); 
+            })
+            .catch(error => {
+              alert('Error updating user');
+              console.error('Error:', error);
+            });
+          });
+        });
+
+
+        document.querySelectorAll('form[id=edit-transaction]').forEach(form => {
+          form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            let formData = new FormData(form);
+            let jsonData = {};
+            formData.forEach((value, key) => jsonData[key] = value);
+
+            fetch(form.action, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(jsonData),
+            })
+            .then(response => response.json())
+            .then(data => {
+              alert('Transaction updated successfully!');
+              window.location.reload(); 
+            })
+            .catch(error => {
+              alert('Error updating transaction');
+              console.error('Error:', error);
+            });
+          });
+        });
+
+        document.getElementById("addUserForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            fetch(`/user`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: formData.get("name")
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert("Failed to add user.");
+                }
+            });
+        });
+
+        document.getElementById("addTransactionForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            fetch(`/transaction`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    user_id: formData.get("user_id"),
+                    amount: parseFloat(formData.get("amount")),
+                    t_type: formData.get("type"),
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    location.reload(); 
+                } else {
+                    alert("Failed to add transaction.");
+                }
+            });
+        });
+    </script>
+{% endblock %}
+
